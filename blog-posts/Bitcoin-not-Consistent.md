@@ -2,7 +2,7 @@
 # Bitcoin Does Not Provide Strong Consistency
 
 >The network can stay partitioned longer than you can wait before
- irrevocably handing over the keys to your Maserati
+ handing over the keys to your Maserati
 
 In this article, I want to explore the question of exactly whether,
 how, and why, we cannot trust Bitcoin with financial transactions, and

@@ -107,26 +107,13 @@ the probability that the Bitcoin network will revise that block
 (choose a longer fork that invalidates that particular block).  But
 these probabilistic arguments are _all_ made with the assumption that
 network partitions are short-lived.  And this assumption is
-[not borne out by real-world experience][Aphyr]:
-
+[not borne out by real-world experience][Aphyr]:  
 >Average partition duration ranged ... to over 8.2 hours for
- hardware-related failures (... 95th percentile .... 3.7 days ...).
-
+ hardware-related failures (... 95th percentile .... 3.7 days ...).  
 It doesn't take a lot of reflection to conclude that if a network
 partitions, the bitcoin miners on _both sides_ will continue to
 operate (and hence, will diverge in their idea of the blockchain's
 contents).
-
->The Bitcoin ledger is a new kind of payment system. Anyone in the
->world can pay anyone else ... and in many cases, no fees .... Bitcoin
->is the first Internetwide payment system where transactions either
->happen with no fees or very low fees (down to fractions of pennies).
-
-This again is false, because there _is_ a fee: the bounty to a miner
-for mining a block.  In economics, this is referred to as seigniorage.
-On April 12 2016, one BTC is worth $428, and the average block
-contains between 1000 and 1500 transactions, yielding a seigniorage of
-between 28 and 42 cents per transaction.
 
 ## Bitcoin is a haven for crime and ransomware
 
