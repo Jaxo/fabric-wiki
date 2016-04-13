@@ -66,7 +66,11 @@ this, he means that, even though at any point,
 
 there is some number of blocks Omega such that, if we discard those
 last Omega, then the _rest_ of the chain is unchanging and
-consistent.  From this, arises a recipe for "knowing if you got paid":  
+consistent.
+
+>
+
+From this, arises a recipe for "knowing if you got paid":  
 1. look for your transaction in the blockchain  
 2. wait until Omega blocks have appeared "above" your tran (in the
    parlance, your transaction has been "buried" by Omega blocks)  
@@ -78,8 +82,9 @@ corresponds directly to a waiting period.
 So let's make this crystal-clear.  The argument is:
 
     If we can put an upper bound on how long we need to wait, for the
-    block in which our tran is found to stabilize, then effectively
-    Bitcoin (with that wait) is a consistent system.
+    block in which our tran is found to move from the scratchpad, to
+    the committed part of the chain, then effectively Bitcoin (with
+    that wait) is a consistent system.
 
 This is false for one simple reason:
 
@@ -102,6 +107,17 @@ Until a partition that lasts longer than an hour.  And as we all know,
 [the network is reliable.][Aphyr], so that never happens.
 
 ## Consensus and why Bitcoin doesn't achieve it
+
+Later in the post, Sirer asks
+
+>Why Is This So Hard?
+
+>There is a lot of confusion among software developers when it comes
+>to consistency in databases. The muddled thinking that pervades the
+>valley when it comes to issues of consistency probably stems from two
+>sources: (1) academics' failure to provide a simple, accessible
+>framework for reasoning about consistency, coupled with the
+>misleading framework embodied in CAP
 
 Consensus is [defined by Lamport][Lamport-Paxos-Made-Simple] in terms
 of three properties of a system that _chooses_ values:  
