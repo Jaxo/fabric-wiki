@@ -125,30 +125,33 @@ consensus _directly_ corresponds to the properties we want from a
 database.  So let's go thru the story of consensus.
 
 Consensus is [defined by Lamport][Lamport-Paxos-Made-Simple] in terms
-of three properties of a system that _chooses_ values:  
+of three properties of a system (of many nodes) that _chooses_ values.
+In the context of a blockchain, we can think of consensus in terms of
+the blocks: we achieve consensus on the value of each block,
+one-by-one.  
+
 * **Integrity** Only a value that has been proposed, may be chosen.  
 * **Agreement** Only a single value is chosen.  
 * **Validity** A process never learns that a value has been chosen,
 unless it actually has been.
 
-In the context of a blockchain, we can think of consensus in terms of
-the blocks: we achieve consensus on the value of each block,
-one-by-one.  Each process participating in the system (each _miner_)
-is choosing blocks, and to say that the protocol the miners execute,
-achieves consensus, means precisely that the values chosen by the
-miners satisfy the three properties above.  
+Each process participating in the system (each _miner_) is choosing
+blocks, and to say that the protocol the miners execute, achieves
+consensus, means precisely that the values chosen by the miners
+satisfy the three properties above.  So let's consider Bitcoin:
 
-    And in this presentation, we can assume that the meaning "choose
-    the value of block N" is "choose the value of block N, afer
-    Omega=6 blocks have buried block N"
+    we can assume that the meaning "choose the value of block N" is
+    "choose the value of block N, afer Omega=6 blocks have buried
+    block N"
 
 It should be clear now that Bitcoin (in the face of arbitrary network
 partitions) cannot achieve **Agreement**: on each side of the
-partition, miners choose the value of a block, and if the partition
-lasts long enough, that choice outlasts Omega .... so applications
-that rely on this definition of "choose" _will_ act on the assumption
-that the block is irrevocable, only to find (on one side of the
-partition) that when the partition heals, the block is indeed revoked.
+partition, miners on each side choose the value of a block, and if the
+partition lasts long enough, that choice outlasts Omega .... so
+applications that rely on this definition of "choose" _will_ act on
+the assumption that the block is irrevocable, only to find (on one
+side of the partition) that when the partition heals, the block is
+indeed revoked.
 
 ## Consensus is the Right Property
 
