@@ -186,7 +186,9 @@ known as a "strong read".
 It should be clear by now that Bitcoin does _not_ provide strong
 consistency: (under partitions) Bitcoin nodes can diverge from each
 other for arbitrarily long periods of time, and with no indication of
-this to clients.
+this to clients.  And by contrast, blockchains based on proper
+consensus (e.g. [Tendermint][Tendermint], [Hyperledger][Hyperledger],
+[Juno][Juno]) simply don't have these issues.
 
 [Sirer2016]: http://hackingdistributed.com/2016/03/01/bitcoin-guarantees-strong-not-eventual-consistency/
 [DeckerSeidelWattenhofer2014]: http://arxiv.org/pdf/1412.7935.pdf
@@ -195,3 +197,6 @@ this to clients.
 [Lamport-Paxos-Made-Simple]: http://research.microsoft.com/en-us/um/people/lamport/pubs/paxos-simple.pdf
 [Nacamuli-Payment-Systems]: http://www.amazon.com/Payment-Systems-Macmillan-Financial-Institutions/dp/0230202500
 [Brewer-cap-theorem]: https://en.wikipedia.org/wiki/CAP_theorem
+[Tendermint]: http://tendermint.com/
+[Hyperledger]: https://www.hyperledger.org/
+[Juno]: https://github.com/buckie/juno
