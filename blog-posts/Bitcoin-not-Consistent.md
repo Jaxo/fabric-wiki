@@ -119,6 +119,11 @@ Later in the post, Sirer asks
 >framework for reasoning about consistency, coupled with the
 >misleading framework embodied in CAP
 
+But it _isn't_ hard!  [Brewer's CAP theorem][Brewer-cap-theorem] isn't
+needed to understand _consensus_ in a distributed system, and
+consensus _directly_ corresponds to the properties we want from a
+database.  So let's go thru the story of consensus.
+
 Consensus is [defined by Lamport][Lamport-Paxos-Made-Simple] in terms
 of three properties of a system that _chooses_ values:  
 * **Integrity** Only a value that has been proposed, may be chosen.  
@@ -145,9 +150,48 @@ that rely on this definition of "choose" _will_ act on the assumption
 that the block is irrevocable, only to find (on one side of the
 partition) that when the partition heals, the block is indeed revoked.
 
+## Consensus is the Right Property
+
+Consensus is the right property to ask of a distributed database
+application.  **Integrity** means that the system does not invent
+transactions in its own -- each transaction that is chosen, was
+submitted by a client.  **Agreement** means that, when asking a node
+for the contents of block NNN, _if it gives an answer_n, that answer
+will be identical to the answer of every other answering node.  And
+**Validity** means that a process will not conclude that block NNN has
+value A, when in fact, other processes have concluded it has value B.
+
+Taken together, these properties allow a client of the blockchain to
+know that the sequence of blocks emitted by some miner to which it is
+connected, is the same sequence received by any other client of any
+other miner in the network.  Perhaps this client will receive blocks
+with some delay; perhaps this client will stop receiving blocks for an
+arbitrary period (if the network partitions, and this client is on the
+side with fewer nodes) but it will _never_ receive a block that the
+miner later revises.
+
+From this guarantee, to building a distributed database application,
+is now straightforward: we treat the blockchain as the (write-ahead)
+log of a database and merely apply the transactions in that log to the
+database.  We don't need to concern ourselves with how to revise the
+database when forks occur, or any other "interesting" issues: if a
+query to our (local) database gives us an answer, we can know that
+(modulo the possibility that the answer is out-of-date) the answer is
+the same as we'd get from any other replica.  And if we want an answer
+that is guaranteed to not be out-of-date, we merely perform what is
+known as a "strong read".
+
+## Conclusion
+
+It should be clear by now that Bitcoin does _not_ provide strong
+consistency: (under partitions) Bitcoin nodes can diverge from each
+other for arbitrarily long periods of time, and with no indication of
+this to clients.
+
 [Sirer2016]: http://hackingdistributed.com/2016/03/01/bitcoin-guarantees-strong-not-eventual-consistency/
 [DeckerSeidelWattenhofer2014]: http://arxiv.org/pdf/1412.7935.pdf
 [Wikipedia-Consensus]: https://en.wikipedia.org/wiki/Consensus_(computer_science)
 [Aphyr]: https://aphyr.com/posts/288-the-network-is-reliable
 [Lamport-Paxos-Made-Simple]: http://research.microsoft.com/en-us/um/people/lamport/pubs/paxos-simple.pdf
 [Nacamuli-Payment-Systems]: http://www.amazon.com/Payment-Systems-Macmillan-Financial-Institutions/dp/0230202500
+[Brewer-cap-theorem]: https://en.wikipedia.org/wiki/CAP_theorem
