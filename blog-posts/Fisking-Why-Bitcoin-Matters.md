@@ -2,7 +2,7 @@
 #Fisking "Why Bitcoin Matters"
 
 In early 2014
-[Marc Andreesen wrote a blog post][Andreesen-Why-Bitcoin-Matters]
+[Marc Andreessen wrote a blog post][Andreesen-Why-Bitcoin-Matters]
 arguing that Bitcoin is a pivotal technology for financial
 transactions.  He made a number of expansive claims in the post, which
 I feel are categorically false, and need to be debunked.  Hence, this
@@ -27,14 +27,14 @@ In this post, I'll focus on two issues:
  how to establish trust between otherwise unrelated parties over an
  untrusted network like the Internet.
 
-Andreesen here is referring to the "consensus" problem in distributed
+Andreessen here is referring to the "consensus" problem in distributed
 systems, and specifically the version where computers can act in
 "corrupt" (Byzantine) ways.  I'll explain below (1) what this problem
-is and why it's important; (2) why **Andreesen is flat-out wrong**.
+is and why it's important; (2) why **Andreessen is flat-out wrong**.
 
 ### Consensus and Byzantine Generals: A Short Tutorial
 
-Andreesen refers to the "consensus" problem:
+Andreessen refers to the "consensus" problem:
 
     can multiple computers on a network achieve agreement on the
 	contents of a replicated database application, and the evolution
