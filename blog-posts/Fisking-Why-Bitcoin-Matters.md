@@ -108,8 +108,10 @@ the probability that the Bitcoin network will revise that block
 these probabilistic arguments are _all_ made with the assumption that
 network partitions are short-lived.  And this assumption is
 [not borne out by real-world experience][Aphyr]:  
+
 >Average partition duration ranged ... to over 8.2 hours for
  hardware-related failures (... 95th percentile .... 3.7 days ...).  
+
 It doesn't take a lot of reflection to conclude that if a network
 partitions, the bitcoin miners on _both sides_ will continue to
 operate (and hence, will diverge in their idea of the blockchain's
