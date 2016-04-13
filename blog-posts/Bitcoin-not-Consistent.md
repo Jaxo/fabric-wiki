@@ -50,12 +50,17 @@ data-models -- including details like tax-lot calculations, multiple
 and complex access-control, etc, etc, etc.  We haven't even begun to
 scratch the surface of "smart, self-enforcing contracts for bond
 coupon or dividend payments".  Or "bond coupon payments on mezzanine
-tranches of CDOs".  The complexity _should_ boggle the mind, and
-convince one that we should expect arbitrary database applications,
-not simplistic systems like Bitcoin.
+tranches of CDOs".  And let's remember that one of the promises of
+blockchains, is that "the application" can be shared, whereas today,
+banks using shared payment systems write intermediary applications to
+deal with some of the issues mentioned above.  So in the promised
+nirvana, the issues mentioned above will be dealt with in the shared
+application -- in the blockchain itself.
 
-And such database applications, almost by default, require strong
-consistency.
+The complexity _should_ boggle the mind, and convince one that we
+should expect arbitrary database applications, not simplistic systems
+like Bitcoin.  And such database applications, almost by default,
+require strong consistency.
 
 ## Back to Our Counter-example: Bitcoin is not Consistent
 
