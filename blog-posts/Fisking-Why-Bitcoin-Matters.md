@@ -129,7 +129,14 @@ Bitcoin developers and operators met on IRC and resolved the problem.
  mining pool operator joined the bitcoin-dev IRC channel .... most
  large businesses .... shut down
 
-
+It's true that the fork was due to a software bug, and software bugs
+can happen in _all_ systems.  But Bitcoin is, by design, able to fork,
+whereas [Paxos][Lamport-Paxos] and other (actually) consistent
+protocols are (again by design) unable to do so.  A fork is something
+regrettable to be avoided, but, like malaria and Africa, intrinsic to
+Bitcoin.  In a Paxos-based implementation, a fork is a critical
+software defect, and enormous effort is expended to ensure that such
+things _never_ occur.
 
 ## Bitcoin is a haven for crime and ransomware
 
@@ -174,7 +181,7 @@ to reflect on _why_ that recovery has been possible:
 
 The problem is when those funds are sent into jurisdictions with lax
 laws and supervisory practices, like the Philippines.  Or Bitcoin.
-
+1
 [Lamport-Byzantine-Generals]: http://research.microsoft.com/en-us/um/people/lamport/pubs/byz.pdf
 
 [Bitcoin-theory-byzantine-generals]: https://bitcointalk.org/index.php?topic=99631.0
@@ -201,3 +208,4 @@ laws and supervisory practices, like the Philippines.  Or Bitcoin.
 
 [bitcoin-2013-fork]: https://bitcoinmagazine.com/articles/bitcoin-network-shaken-by-blockchain-fork-1363144448
 
+[Lamport-Paxos]: http://research.microsoft.com/en-us/um/people/lamport/pubs/lamport-paxos.pdf
