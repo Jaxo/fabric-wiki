@@ -78,10 +78,11 @@ The question of whether Bitcoin solves the BGP
 [has been studied][Bitcoin-theory-byzantine-generals] by academics,
 and in my review of the literature, I have found _no_ examples of
 academics claiming that Bitcoin solves the "Asynchronous BGP".
-Rather, they all study the "Synchronous BGP".  We shoudln't be
-surprised: academics like to write papers with positive results
-(nobody wants to tell the world that Omega-3 fatty acids are useless),
-and this is no exception.
+Rather, they all study the (unrealistic) "Synchronous BGP".  We
+shoudln't be surprised: academics like to write papers with positive
+results (nobody wants to tell the world that
+[Omega-3 fatty acids are useless][omega-3-samefacts]), and this is no
+exception.
 
 So let's be clear:
 
@@ -191,3 +192,5 @@ laws and supervisory practices, like the Philippines.  Or Bitcoin.
 [Nakamoto-bitcoin]: https://bitcoin.org/bitcoin.pdf
 
 [Aphyr]: https://aphyr.com/posts/288-the-network-is-reliable
+
+[omega-3-samefacts]: http://www.samefacts.com/2013/01/health-medicine/how-breakthrough-medical-findings-disappear/
