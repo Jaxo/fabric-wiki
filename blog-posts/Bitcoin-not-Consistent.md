@@ -164,7 +164,7 @@ Consensus is the right property to ask of a distributed database
 application.  **Integrity** means that the system does not invent
 transactions in its own -- each transaction that is chosen, was
 submitted by a client.  **Agreement** means that, when asking a node
-for the contents of block NNN, _if it gives an answer_n, that answer
+for the contents of block NNN, _if it gives an answer_ n, that answer
 will be identical to the answer of every other answering node.  And
 **Validity** means that a process will not conclude that block NNN has
 value A, when in fact, other processes have concluded it has value B.
