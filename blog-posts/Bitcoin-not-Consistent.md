@@ -1,6 +1,19 @@
 
 # Bitcoin Does Not Provide Strong Consistency
 
+>The network can stay partitioned longer than you can wait before
+ irrevocably handing over the keys to your Maserati
+
+In this article, I want to explore the question of exactly whether,
+how, and why, we cannot trust Bitcoin with financial transactions, and
+other economically-relevant databases.  In short, if you're selling
+your Maserati for Bitcoin, you need to be an oracle -- to know that
+the network has not partitioned, or if it has, to know by when it will
+be repaired.  These are unknowable for technical folk, and beyond
+human imagination for nontechnical folk.  The fact that to use
+Bitcoin, we *must* know these things, means **Bitcoin is unsafe as the
+underpinnings of our economy**.
+
 Recently [Emin Gun Sirer][Sirer2016] argued that Bitcoin provides
 strong consistency, not eventual consistency (as was argued by
 [Bitcoin Meets Strong Consistency][DeckerSeidelWattenhofer2014]).  In

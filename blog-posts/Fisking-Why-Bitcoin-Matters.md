@@ -1,9 +1,6 @@
 
 #Fisking "Why Bitcoin Matters"
 
->The network can stay partitioned longer than you can wait before
- irrevocably handing over the keys to your Maserati
-
 In early 2014
 [Marc Andreesen wrote a blog post][Andreesen-Why-Bitcoin-Matters]
 arguing that Bitcoin is a pivotal technology for financial
