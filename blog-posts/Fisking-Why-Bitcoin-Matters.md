@@ -37,10 +37,10 @@ this problem is and why it's important; second, I'll explain why
 
 Andreesen refers to the "consensus" problem:
 
-  can multiple computers on a network achieve agreement on the
-  contents of a replicated database application, and the evolution of
-  those contents over time, in the face of specified sorts of
-  failures/corruptions/errors?
+    can multiple computers on a network achieve agreement on the
+	contents of a replicated database application, and the evolution
+	of those contents over time, in the face of specified sorts of
+	failures/corruptions/errors?
 
 so that (for example) each computer (perhaps run by an independent and
 competing bank) can trust that the contents of the database accurately
