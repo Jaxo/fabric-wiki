@@ -56,11 +56,11 @@ participating banks.  Classically, the problem comes in two varieties:
    referred to as
    ["The Byzantine Generals Problem"][Lamport-Byzantine-Generals])
    (or BGP): in the face of (some) computers either crashing, or
-   behaving in (arbitrarily undefined) corrupt ways, can we achieve
-   consensus?
+   behaving in (arbitrarily undefined) corrupt ways, can we ensure
+   that non-crashed, non-corrupt computers achieve consensus?
 
 And further, the problem can be modified by the sort of failures
-expected of the network:
+expected of the **network**:
 
 * **Synchronous networks** are those where any message can be delayed
   only by some bounded amount: every message is eventually delivered
@@ -70,7 +70,7 @@ expected of the network:
   duplicate, reorder, or drop messages: these are realistic networks.
 
 So (for instance) the "Synchronous BGP" is one where computers can act
-in corrupt ways, but the network _never- partitions.  Whereas, in the
+in corrupt ways, but the network _never partitions_.  Whereas, in the
 "Asynchronous BGP", the network _can_ partition.
 
 ### Bitcoin does not "solve Consensus"
@@ -94,7 +94,25 @@ So let's be clear:
 It doesn't take a lot of reflection to conclude that if a network
 partitions, the bitcoin miners on _both sides_ will continue to
 operate (and hence, will diverge in their idea of the blockchain's
-contents).
+contents).  [Sirer][Sirer2016] recently argued that Bitcoin was
+"strongly consistent", by which he means, roughly speaking, that it
+achieves consensus.  His argument boils down to this:
+
+    Certainly, the most-recent Omega (typically == 6) blocks of the
+    blockchain can be unstable (change over time due to "forks"). But
+    once a block has been "buried" by Omega blocks, the probability of
+    that block changing is vanishingly small.
+
+Sirer relies on a probabilistic argument by
+[Nakamoto in his original bitcoin whitepaper][Nakamoto-bitcoin] that
+the more blocks that follow a particular block in the chain, the lower
+the probability that the Bitcoin miner will revise that block.  But
+these probabilistic arguments are _all_ made with the assumption that
+network partitions are short-lived.  And this assumption is
+[not borne out by real-world experience][Aphyr]:
+
+>Average partition duration ranged ... to over 8.2 hours for
+ hardware-related failures (... 95th percentile .... 3.7 days ...).
 
 
 
@@ -159,6 +177,8 @@ laws and supervisory practices, like the Philippines.  Or Bitcoin.
 
 [Andreesen-Why-Bitcoin-Matters]: https://a16z.com/2014/01/21/why-bitcoin-matters-2/
 
+[Sirer2016]: http://hackingdistributed.com/2016/03/01/bitcoin-guarantees-strong-not-eventual-consistency/
+
 [Varonis-Brief-History-of-Ransomware]: https://blog.varonis.com/a-brief-history-of-ransomware/
 
 [Cryptowall-Report]: http://cyberthreatalliance.org/cryptowall-report.pdf
@@ -168,3 +188,7 @@ laws and supervisory practices, like the Philippines.  Or Bitcoin.
 [MF-Global-collapse]: https://en.wikipedia.org/wiki/MF_Global
 
 [Bangladesh-bank-theft]: http://www.bloomberg.com/news/articles/2016-03-09/the-1-billion-plot-to-rob-fed-accounts-leads-to-manila-casinos
+
+[Nakamoto-bitcoin]: https://bitcoin.org/bitcoin.pdf
+
+[Aphyr]: https://aphyr.com/posts/288-the-network-is-reliable
