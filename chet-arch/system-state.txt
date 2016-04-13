@@ -1,0 +1,27 @@
+[Following up on a slack post by Jason, I remembered that I needed to write a note about the way that state is managed in OBC]
+
+I. Motivation
+
+Today, chaincodes are deployed via deployment trans, that themselves are found in the blockchain.  But there is no trace in the "state" of the effect of those deployment trans.  This is very, very problematic and needs to be fixed.  EVERY tran MUST make its effects known to the system ONLY via changes to the state.  Otherwise (for instance), there is no way to log-truncation.  But this is a general principle that every relational database enforces.
+
+This also applies to all persistent configuration state of consensus, including "current quorum whitelist", "current value of f", "current window", "current depth of unsubmitted trans at each peer", etc.
+
+II. A design for "system-state"
+
+The system-state consists in a (small number) of chaincodes, each of which is devoted to some functional area.  For starters, probably three:
+
+  (a) consensus
+
+  (b) chaincode mgmt
+
+  [possibly] (c) membership mgmt state (not the same as membership svcs -- might be particular info for this blockchain)
+
+Trans that affect system-state MUST NOT affect "application state".  system-state is the persistent trace of tran-application, and the -log- should NEVER be used for any other purpose than recovery and replication.  And yet, (for instance) PBFT needs to know when the quorum whitelist is changed.  So we need an efficient way of telling PBFT to check the system-state for changes.  Per the MVCC design, each row in system-state will be versioned; but we should have a version-number on the entire system-state, and hence, system-state trans should be fully-serialized.  That way, parts of the system that (in-memory) cache stuff from system-state, can know to check for changes.
+
+There is also the issue of APIs to read various bits of system state.  I've seen Slack messages where people have suggested adding new APIs.  Instead, all system-state chaincodes should be world-readable (we probably need to make this an option for all chaincodes) and there should be a Read(<chaincode-address>, <key>) (and key-prefix query) API to read the k/v store of these chaincodes, from clients.
+
+III. Immediate Implications
+
+Chaincode deployment MUST be done via inserting a row in to the "chaincode-mgmt" chaincode's K/V store.
+
+--chet--

@@ -1,0 +1,401 @@
+	
+DesignNote: A proposal for dealing with confidential data  
+
+Chet Murthy  	to:	Chet Murthy	02/01/2016 12:08 PM
+			
+
+Cc:	Binh Q Nguyen, Christian Cachin, Frank Y Lu, Gennaro Cuomo, Jeffrey Garratt, John Wolpert, Joseph A Latone, Konstantinos Christidis, Mark Parzygnat, Marko Vukolic, Elli Androulaki
+	
+	
+
+
+
+This note is a follow-on to the attached note, and describes a proposal for dealing with confidential data, based on what's described below for confidential chaincode (== "code").
+
+0. Terminology
+
+ I'm going to call the "key" in a key/value store by the name "pkey" (== "primary key") in order to distinguish it from the "key" of cryptography.
+
+I.  Assumptions
+
+(1) data model: I'm assuming that the data-model is one where "chaincode" corresponds to (today) "enterprise app" (e.g. a bank's checking-account system, or a brokerage's stock-holding system).  This is a coarse-grain modeling of data into the blockchain's state.
+
+[One could also imagine a fine-grain modeling, where individual bank accounts got modeled as chaincodes, but I'll argue that whoever proposes this, needs to write a nontrivial app in Ethereum/Solidity doing it this way, before claiming that it's a feasible design.  My belief is, it's completely infeasibly complex.  Whereas, the coarse-grain method, allows a straightforward "port" of both training and application data-models.]
+
+II. Recap of "Validating non-confidential trans"
+
+The idea was:
+
+(1) there's a consensus service, which is responsible only for ordering the log and delivering it to all connected participants, and executes no chaincode or other business logic, maintains no db state, etc, etc, etc.  You could think of it as an exactly-once/totally-ordered pub/sub system.  This consensus service also periodically broadcasts a "view" of which peers are up (and peers treat this like a view, in view-synchrony terms).
+
+(2) There are "peers" connected to the service, and they may be validating peers.  A peer applies all the trans it receives from the consensus service, to keep up-to-date a copy of the database state, in standard Paxos-like manner.
+
+(3) There are "clients", which correspond to users who initiate transactions.   Clients connect only to peers.  We will refer to a client that submits a tran, as the "submitting client" and the peer to which it is connected as the "submitting peer".
+
+(4) Peers are run by "participants" (Elli called them "entites", and I like that term, too) -- banks, brokerages, companies.
+
+(5) chaincode is deployed by entities, and that chaincode is marked with its "owning entity" (Elli's term, I think).  The entity can deploy the chaincode as "MUST validate" or not.  The meaning of "MUST validate" is that a tran that modifies data in this chaincode, MUST be validated by the owning entity's peer.
+
+(6) The flow of the validation and execution of a confidential chaincode
+
+  (a) When a client submits a tran to its submitting peer
+
+  (b) the submitting peer -simulates- the tran fully, accumulating a set of MVCC constraints and postimage changes (inserts/deletes/updates).
+
+  (c) The chaincodes at which these updates are to occur (since the root invocation could have caused a tree of invocations, these could be many) will all be associated with owning entities, and some of those owning entities are "MUST validate".  Call this the "MUST validators".
+
+  (d) There will also be a set of "more trusted" third-party validators, e.g. run by a clearinghouse, central banks, etc.
+
+  (e) There will be a configuration setting for how many of the validators from #d need to validate the tran (effectively, specifying "f" in 3f+1).
+
+  (f) This setting will be used, along with a deterministic selection procedure (e.g. PRNG) to select 3f+1 validators from #d, which we will call the "MAY validators".
+
+  (g) All this happens at the submitting peer; once the submitting peer has the list of (MUST, MAY) validators, it sends out the tran (plus MVCC/postimage info), with this list thru the consensus service.  [If the consensus service supports reliable point-to-point delivery, that can be used instead, I suspect.]
+
+  (h) each such validator simulates the tran, verifies that the MVCC/postimage info is correct), and returns a "validation signature" to the submitting peer.
+
+  (i) once the submitting peer has "enough" validation signatures, it sends the tran+signatures thru consensus for commit.
+
+  (j) when a peer receives such tran, it redoes the work of steps #c,#f, to compute (MUST, MAY) validators, checks that all required validation signatures have been provided, verifies that MVCC constraints are still valid (no rows have changed that the tran read) and then applies the postimage changes.
+
+    --> key point: WITHOUT running the tran.  It relies on the validators having done the job, and doesn't need to do it again.
+
+III.  Discussion
+
+(1) "Is this BFT?"
+
+In a classic Byzantine consensus problem, we wish to protect against "f" corrupt peers, and so we run "3f+1" peers, with a BFT algorithm.  But the algorithm is -presented- the other way around: we're given N peers, and we -infer- that we can protect against floor((N-1)/3) corrupt peers.  The latter phrasing it's necessary.  If the "MAY validators" are chosen from a set that is -less- likely to be corrupt, we can have far, far fewer validators per tran, and still be protected against byzantine faults.
+
+(2) "What are these MUST validators"?
+
+So far, everybody assumes that banks will just abide by the rule that "if enough validators say the tran is valid, then it must be valid".  There are two reasons why this might be unrealistic:
+
+  (a) It seems to me, if these banks are already so distrustful of each other, that they require protection against byzantine faults, then it isn't a big step to argue that a bank would not allow a change to data it owns, unless its own peer validated that tran -- regardless of which peer submitted it.
+
+  --> e.g. in a stock-trading app, I might connect to my brokerage, but the money to buy the stock would come from my bank account.
+
+  (b) furthermore, there will be cases where some other party might have a veto of the tran, e.g. a central bank might run a validator, that also checks the state-changes for adherence to anti-money-laundering regulations.
+
+(3) "This is like 2PC"
+
+The validation phase is like 2PC, in that all the participants (well, 2f+1 of 3f+1) must vote "yes" to allow the tran to commit.  And then the consensus service plays the role of the resilient log at the coordinator (in order to protect against the coordinator SPOF).
+
+(4) "How are the keys managed by the owning peers?"
+
+I haven't specified how the owning peers manage the keys, and manage to not lose them!  Clearly, this data cannot be stored "in the blockchain state", b/c otherwise, it would be available everywhere, and moreover, if it's encrypted, 
+
+IV. Generalization to "confidential chaincode"
+
+To generalize to confidential chaincode, just assume that some or all of the chaincode involved in the invocation tree from the root invocation, are encrypted.  Validators proceed to run the tran, and at some point, encounter an encrypted chaincode for which they lack the key (they start off validation with NO keys).  Two ways this gets resolved:
+
+  (i) validator returns error to submitting peer, with identity of chaincode it needs to decrypt; submitting peer contacts owning entity's peer for that key, encrypted with the complaining validator's key (of course), which it passes along to the validator.  The validator can now retry, getting further, perhaps again failing b/c of lack of a -different- key, etc, etc, etc.
+
+  (ii) validator directly contacts owning entity's peer for key, etc, etc.
+
+That's it.
+
+V. Generalization to "confidential data"
+
+Confidential data follows in a similar way -- pkeys are not encrypted, but values are encrypted.  Each pkey has a suffix, identifying the (crypto) key needed to decrypt the data.  In this manner, a chaincode could hold bank account information for MANY users, with each user's information encrypted using a different key.  Just as for confidential chaincode, a validator runs along, and when it hits data it cannot decrypt, it complains and asks for the key.  There are two "twists":
+
+(i) the -effects- are (or can be) also encrypted, and the chaincode will need to ensure that it uses the correct key.  A good "support library" should make this straightforward.
+
+    --> of course, those effects (postimage changes) would be propagated around like all others.  Other (not-validating-this-tran peers) would just apply them blindly.
+
+(ii) Sometimes, there will be tables whose primary keys expose "too much information" (this will be especially true of tables that are really secondary indices).  Let's take a concrete exampe: a stock holdings tables, with primary key (acct#, cusip, buy_date).  [cusip is unique identifier for a financial instrument.] Perhaps we want to obscure the cusip.  To do so, we could do two things:
+
+  (a) group rows with the same acct#, and encrypt them all.  So the table has effectively primary key (acct#)
+
+  (b) -reorder- the primary key as (acct#, buy_date, cusip), and then group by (acct#, buy_date) -- this will result in much smaller values.
+
+In both cases (again) appropriate support libraries should make this completely transparent to the chaincode.
+
+VI.  How is this "confidential"?
+
+It is fair to ask "how is this confidential, when the validators are able to decrypt everything.  First, I should note that this is no worse than if validators are pre-configured with keys to be able to decrypt all chaincode and rows they're responsible for validating -- in this design, validators don't -retain- keys, but only request, use, and then discard.
+
+At the end of the day,if we want to run a database that manipulates assets, we need to ensure that those assets are not double-spent, and that other business-logic rules about them are adhered-to.  Even in a case where an asset is issued by (for example) JPMC (e.g. a bond) we need more validation, than just JPMC's word, that the bonds aren't being double-spent.  If we didn't, then just exactly why are we bothering to run BFT in the first place?
+
+So given that we're assuming the possibility of Byzantine faults, I claim that this is the best we can get.
+
+--chet--
+
+
+
+
+From:	Chet Murthy/San Francisco/Contr/IBM
+To:	Gennaro Cuomo/Raleigh/IBM@IBMUS, John Wolpert/Burlingame/IBM@IBMUS, Mark Parzygnat/Raleigh/IBM@IBMUS, Binh Q Nguyen/Raleigh/IBM@IBMUS, Frank Y Lu/Raleigh/IBM@IBMUS
+Cc:	Konstantinos Christidis/Durham/IBM@IBMUS, Jeffrey Garratt/Raleigh/IBM@IBMUS, Christian Cachin/Zurich/IBM@IBMCH, Marko Vukolic/Zurich/IBM@IBMCH, Joseph A Latone/Cambridge/IBM@IBMUS
+Date:	01/03/2016 09:16 PM
+Subject:	Trading latency for throughput and scalability: Separating consensus from validation
+
+
+
+Trading latency for throughput and scalability:
+
+Separating consensus from validation
+
+The purpose of this note is to explain how, assuming we have a
+consensus mechanism already available, we can use it to separately
+deal with validation, in a manner that scales with the number of
+putative validators (== banks).
+
+There might be errors in this note.  I'm sending it in its raw form, b/c .... I figure, might as well get this conversation started.
+
+Marko, Christian, I'm especially eager to get your thoughts on this subject, for ... well, obvious reasons *grin*.
+
+Jerry, John, I've added a last section with an attempt at how to deal with confidential chaincode.  I'm sure with a bit more conversation and requirements-gathering, I can do better, but this is what I have, for the moment.
+
+================================================================
+
+I. Assumptions about consensus
+
+(1) either PBFT or Paxos, and committers chosen purely on fault-tolerance grounds.  The software of the committers is (as we'll see below) fixed -- committers don't run trans -- and they could (and should, IMO) be run by agencies other than the banks.
+
+(2) the stream of records coming out of consensus also comes with a
+configurable "segment size" (e.g. 1Gb, 10Gb).  The idea is that there
+is a "segment number", monotonically increasing, and no segment will
+grow to be larger than TWICE the "segment size".  The segment size
+should be chosen to be much, much larger than the largest supported
+message-size.  The consensus system MAY use the segment-size
+internally as the size of segments in its log, but in any case, it
+must track (at least) the aggregate bytes of commits for the current
+segment-number, and when that approaches the current segment-size,
+force thru a "new segment" commit that will carry the new
+segment-number.  When a peer receives a "new segment" commit, it
+closes the previous segment and starts the new one.
+
+  --> this allows us to vaguely talk about LOG-SEQUENCE NUMBERS
+      without having to do a lot of work -- an LSN will be the pair of
+      (segment-number, commit-number), and we can identify messages
+      that are "near" by saying that they're in the current segment,
+      or "a few segments back".
+
+      This will become useful later.
+
+(3) committers will have their own log-reaping mechanisms, and will keep logs around for a long (but not infinite) time.  We'll need to define a state-transfer mechanism to get new validatorr (== "ordinary peers" below) up-to-date; ordinary peers that merely fall behind can get caught-up when they re-contact a committer.
+
+================================================================
+
+II. The basic idea
+
+Currently, consensus pushes trans around, and validating peers vote on
+whether those trans are correct.  We'll change that so:
+
+(1) consensus pushes -messages- (some of which are trans, but we've
+already described above another kind of message), and "CONSENSUS
+PEERS" will vote OK in the manner of Paxos -- that is, if they haven't
+voted already on a higher-numbered ballot, in the customary way. [I
+don't want to look up how it's done in PBFT, but I'm guessing that
+there's a similar concept there.]
+
+(2) Thus, all consensus peers receive a stream of committed messages.
+
+(3) All current validators are clients of consensus peers, and
+subscribe to the stream of committed messages.  In addition,
+non-validating peers may subscribe to consensus peers.  We'll call
+all of these "ORDINARY PEERS".
+
+  --> a non-validating peer is just an ordinary peer that never
+      responds to requests to validate trans.
+
+  --> We'll need some security mechanisms here, but this should be
+      anodyne.
+
+  --> by "subscribe", I mean the obvious sort of "subscribe to the log, so they
+        get changes as the log is appended-to".
+
+(4) All non-peer nodes connect to ordinary peers; we'll call these
+"CLIENTS".  Ordinary peers receive the full stream of commits, so they
+can and do maintain a up-to-date replica of the state, just as peers
+do today in OBC.
+
+(5) When a client (the "PROPOSING CLIENT") wishes to submit a tran for
+execution, it will first compute (to be described below) a list of
+MUST and MAY signers; it will attach that to the tran, and send it to
+its ordinary peer, which will in turn send it to its consensus peer,
+as a "PROPOSED-TRAN" message.
+
+  --> I'm assuming that MVCC/POSTimage information has already been computed
+        and is part of the tran.
+
+(6) When an ordinary peer receives a commit containing a proposed-tran
+message, for which it is on the list of signers, it will validate the
+tran, and if it's valid, will send (thru consensus) a "VALID-TRAN"
+message (containing its signature, and referencing the proposed-tran
+it's signing, using that tran's LSN -- the LSN of the proposed-tran
+message).  If the signer rejects the tran, it sends (again, signed) an
+"INVALID-TRAN" message.  Possibly, this will contain "reason codes and
+explanatory messages".
+
+  --> nothing prevents a bank from running multiple (validating or not) ordinary
+        peers, at multiple locations, all of which sign with the same key, so that if
+        one is down, others can sign in their place.
+
+(7) The proposing client's ordinary peer maintains a list of all
+proposed-trans for which it's awaiting signatures; when it finally
+gets enough signatures to either accept or reject the tran, it can
+take action:
+
+  (a) if the action is to reject, it informs the proposing client of
+  this decision (there may be further information)
+
+  (b) if the action is to accept, it concatenates the signatures and
+  the proposed-tran and sends it to its consensus peer for commit.
+  We'll call this the COMMIT-TRAN message.
+
+    --> an optimization: if the LSN of the proposed-tran is near
+        enough, it may just put the LSN into the message, rather than
+        the tran itself.
+
+  (c) obviously after some timeout, the ordinary peer could just purge
+        the proposed tran and tell the client it was rejected b/c timeout;
+        if later signatures arrive, they can be discarded.
+
+  (d) I'm assuming that a client trusts the peer to which it's connected;
+       Since all instruments are eventually held in depository institutions,
+       and proxies to them are held in custodial institutions, this seems to
+       be a reasonable assumption.  I'm sure we can work around, if need be.
+
+(8) How does this achieve validation?
+
+When the committed-tran message arrives at a peer, it inspects the signatures
+and
+
+  (a) computes (from the MVCC, POSTimage info) the list of MUST signers
+
+  (b) computes the MAY signatures also
+
+      --> how will this happen?  Perhaps each owning address (more on
+          that below) will list how many signatures it wants?
+
+      --> maybe also from which class of validators to draw those signers? (central banks?  OECD banks?)
+
+      --> note that #a, #b had better be deterministic *grin*
+
+  (c) and checks that the provided signatures are sufficient to cover
+  the requirements; at that point, the tran is valid and can be
+  applied, either by applying POSTimage updates or running the tran.
+
+  --> Of course, the MVCC constraints could STILL render the tran
+      invalid (b/c some critical row changed between when the tran was
+      proposed, and when it was committed); in this case, the tran
+      will STILL be rejected.
+
+  (d) Perhaps what we really need are three classes of signers:
+
+    (i) MUST signers (== "owners")
+
+    (ii) MAY signers (== some number of banks, e.g. central banks)
+
+    (iii) MAY2 signers (== some number of other banks, selected in
+     some random manner)
+
+    --> The idea being, we require ALL MUST signers, and a majority of
+        each of the sets of MAY* signers.
+
+    --> but this is getting baroque.  In paractice, I suspect it will
+        suffice that you get all owners and 2/3+1 of central banks,
+        and call it a day.
+
+================================================================
+
+III. Observations and improvements (in no thought-out order)
+
+(1) consensus window and latency: Paxos (and, I'm sure PBFT) can
+support having many proposals in-progress simultaneously.  We'll
+assume that this is used.  So in effect, we're looking at 3 rounds of
+consensus to take a tran from "not yet proposed" to "committed".
+Since these are overlapping with many other proposed trans, there
+should be no other latency issues.
+
+(2) bandwidth: In the expected case, the proposed-tran message
+contains the tran itself; the commit-tran message typically only
+contains an LSN.  So the extra traffic really boils down to the
+signatures getting sent to all peers, instead of only to the proposing
+ordinary peer.
+
+  --> One could imagine a version of the "consensus service" that
+      supported point-to-point messages, in the style of many virtual
+      synchrony systems.  I'm not assuming that here, b/c we want to
+      build something simple.  But obviously, such improvements are
+      well-understood.
+
+(3) Who signs, and how do we decide?
+
+In the naive view of PBFT with all banks as validators, we're
+basically saying that all banks have equal weight.  This is obviously
+not true for two reasons:
+
+  (a) some banks aren't trustworthy (Moldova?)
+
+  (b) some banks are more trustworthy than others (OECD central banks)
+
+But nevertheless, a bank MUST sign a tran, when its own money
+obligations are involved.  So even if we don't trust some Moldovan
+bank to sign any trans, it MUST (at least) sign trans for payments
+to/from its accounts.  So we need to associate with each data-item
+(each row?  each account?) an "OWNING ADDRESS".  That owning address
+maps to a validating peer, and that validating peer MUST be a signer,
+or the tran will be invalid.
+
+(4) Scalability?  We get scalability of validators in the obvious
+manner: not every validator need be involved in validating every tran.
+We can still get resistance to corruption, by ensuring that the MAY
+signers are sufficiently numerous, and (for instance) always chosen
+from OECD-based banks.
+
+(5) snapshots
+
+Periodically, a validator from amongst the "managing" subset would commit a "snapshot" message.  Ordinary peers, upon receiving this message, would save a snapshot, and discard any earlier snapshots.  Peers remember the LSN of the current snapshot.  When a new peer comes online, it discovers the list of all peers, asks "enough" of them for the checksum (and LSN) of their most-recent snapshot).  Using 2/3+1 logic, it figures out what the checksum ought to be, and from which peers it should ask for that state.  Peers also tell it how many rows they have in that snapshot.
+
+  --> "enough" peers might mean "peers it trusts a priori"
+
+The new peer then sends requests for rows, to each of of some subset of the peers that gave proper checksums, assembles a full snapshot, verified the checksum, and then moves on to pulling logs, in a similar manner.
+
+Throughout this process, we can either just use consensus to send around messages, or if the consensus service provides a point-to-point messaging capability, use that instead.  Obviously, point-to-point messaging woudl be preferred.  If we must use consensus, then these messages will add to the log, and we need to ensure that no "manager" peer commands a new snapshot to be taken.
+
+This is a little involved to figure out, but let's note that it's only marginally easier if we assume point-to-point messaging: we still must assume that the peers from whom we're getting checkpoints don't discard them pre-emptively, and we still have to work thru the logic of 2/3+1 to ensure that peers don't lie to us.
+
+We MUST assume full state-transfer across a WAN, so there's no way to avoid all this logic.
+
+
+================================================================
+
+IV.  Confidential transactions
+
+[I'm makin' this up on-the-fly.  But I think that, based on the assumption that only "owners" can decrypt confidential chaincode, this is just about the only way the thing can work out.  I suspect that for this to really work, we'll need virtual synchrony support from the consensus service, and not merely consensus -- too much of the messaging traffic has no need to be sent thru a full consensus service, and in any case, the communication infrastructure will need to notify ordinary peers if nodes with which they were communicating have become unresponsive.]
+
+There are two versions of confidential transactions:
+
+  (i) the submitter (client) can decrypt the tran's chaincode and run it (and all confidential chaincodes that it invokes)
+
+    --> this is unrealistic
+
+  (ii) the submitter CANNOT decrypt the tran and run it
+
+In case (i), it's really simple, so let's dispatch it.  The submitter prepares the tran in the normal way, including MVCC and POSTimage information.  In addition, it encrypts the key under which the chaincode was protected, using the keys of all the validators it has chosen.  The validators, when they receive the proposed-tran message, can decrypt the required chaincode and run as above.
+
+For more realism, assume that a number of chaincodes are involved, owned by different mutually rivalrous parties.  The submitting client does the following:
+
+(a) start with the tran invocation, and the address or name of the chaincode to be invoked by that tran. [as we go thru this process, we'll accumulate a list of such chaincodes -- call it the TO-BE-INVOKED list]
+
+(b) select some set of "trustworthy" validators
+
+(c) send a TRAN-TO-VALIDATE message to the owner of the each chaincode in the to-be-invoked list, with the set of trustworthy validators
+
+(d) the owner(s) of each chaincode MUST reply with the key for the chaincode, encrypted using the public key of each of the trusted validators
+
+(e) send a VALIDATE-TRAN message to each trustworthy validator, with the tran, and the (encrypted) keys thus far accumulated
+
+(f) validators will execute the tran as far is possible with the keys they have received; if they must stop (encountering encrypted chaincode), then reply with INSUFFICIENT-KEYS and list the chaincodes they were unable to decrypt; if they finish, they reply VALIDATED with full MVCC and POSTimage information
+
+(g) If the client receives INSUFFICIENT-KEYS, it starts again at step #c; if it receives VALIDATED, they ensure that they get 2/3+1 such validated, and proceed as below:
+
+(h) Finally, the client has 2/3+1 VALIDATED messages, each with MVCC+POSTimage info.  The question is, are these sets compatible?  [I won't describe compatibility here, but it's straightforward (see below)]  If they're compatible, the client constructs a single proposed-tran message, with all the keys it sent in the TRAN-TO-VALIDATE message, and sends that out for validation and commit.
+
+Notice that if we use consensus here to ship the TRAN-TO-VALIDATE message, FOR FREE we get that all validators will be running the tran against the same state of the database.  Since we're sending the tran to "trustworthy" validators and not to chaincode-owners, each validator will run exactly the same code in exactly the same way, producing identical MVCC/POSTimage results.
+
+
+
+

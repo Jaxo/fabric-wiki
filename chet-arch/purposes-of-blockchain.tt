@@ -1,0 +1,35 @@
+
+This design note is to set forth and justify this new design principle
+for the OBC blockchain's interaction with the rest of the system
+(state, running in-memory data).
+
+I. Principle
+
+There shall be only three uses of the "blockchain per se" by the OBC
+system:
+
+  (1) for single-node recovery (in standard write-ahead-logging (WAL)
+  fashion)
+
+  (2) for distributed-systems recovery (catching-up lagging nodes)
+
+  (3) for hashing to support detection of byzantine behaviour by
+  clients
+
+II. Justification
+
+Any access to the blockchain for other than these three motives,
+requires randon-access -- either to blocks or trans by their
+respective IDs.  And this -is- impossible to support efficiently in an
+OLTP database.
+
+III. Ramifications
+
+The only specific ramification of this design decision (today) is that
+chaincode-deploy must be effected by -first- updating a system table
+(cf. SYSIBM.SYSPROCEDURES) and -then- building a docker image of that
+chaincode.  As a side-effect, we can reliably support atomic chaincode
+delete.
+
+--chet--
+

@@ -1,0 +1,104 @@
+Vita,
+
+This is note is a little old, but we can talk more on the phone.
+
+----- Forwarded by Chet Murthy/San Francisco/Contr/IBM on 03/29/2016 01:00 PM -----
+
+II. Concurrency-control
+
+(1) currently, a tran is both the "code" (== chaincode ID + args) as
+well as the state-hash of the resulting state.  The state-hash is in
+the block, but still, each block could be a single tran, so this is an
+equivalent model
+
+(2) This means that if tran #2 follows tran #1, tran #2's state-hash
+must derive from tran #1's state-hash, exactly by applying tran #2's
+code.
+
+(3) I propose instead of the state-hash, that the tran contain:
+
+  (a) for each key that the tran's execution reads, the key and the
+  version-number of the value
+
+  (b) for each key the tran deletes, the key, version number
+
+  (c) for each key the tran inserts, the key, version number, value
+
+  (d) for each key the tran updates, the key, old version number, new
+  version number, value
+
+  [later] (e) when/if OBC supports range-queries, something similar to
+  #a, for range-queries
+
+  This is basically a combination of the postimage log, and the MVCC
+  constraints.
+
+  [I want to call out the next point: this is one of the -several-
+  methods we can choose.  I'll write up an "alternatives" list, and
+  send that around next.  Also, I think we should run this buy a
+  database guru, to see what the "standard thing" is, in
+  database-land.]
+
+  (f) any new version-number above MUST be greater than any
+  version-number in the log so far.  To guarantee this, the ledger
+  keeps track (durably) of the highest version-number it's seen in any
+  tran it's executed.
+
+  --> a different way of enforcing this, turns out to be: as part of
+      the execution of each tran, we store in the database the commit
+      # of the tran; this means that no tran can be executed twice.
+
+  [I suspect that this second method will be preferred in the end --
+  it's far simpler to implement, and requires very little convincing
+  to conclude it's correct.]
+
+(4) With these changes, two trans that do not have write/write or
+read/write conflicts, can be serialized in either order.  So we can
+-commit- (in the consensus sense) tran #2 before tran #1 has executed,
+or heck, even been committed.
+
+(5) The workflow for getting a tran all the way to execution would
+work like this:
+
+  (a) client asks local peer to -simulate- Tran=<chaincode-id, args>
+  against the current database snapshot, producing the information in
+  #3 above.
+
+  (b) client packages Tran + #3 information, and submits to the peer
+  for commit and execution, and receives back a subscription for the
+  assigned tran-id, which it can watch for the eventual status of the
+  tran
+
+  (c) peer assigns the tran an ID, giving that to the client; it sends
+  the tran thru the consensus process in the normal way.  Key here:
+  consensus does NOT involve either executing or simulating the tran.
+  Only deciding on the order of execution of trans.
+
+  (d) eventually, the tran arrives in the log, committed, at this
+  peer.
+
+  (e) the peer -executes- the tran, -checking- that the #3 constraints
+  obtain -- that the train doesn't read something it didn't declare,
+  write something it didn't declare, nor fail to write something it
+  DID declare.
+
+    --> note that it would be sufficient to merely -apply- the
+        tran-record without running the tran
+
+  (f) as each tran conpletes execution (either succeeding or failing),
+  their resulting status is published to all clients that subscribed
+  to the tran-id (typically, only one)
+
+(6) Then there's the case of "catching up a server".  Since each tran
+contains MVCC and postimage information, we can just replay that,
+instead of rerunning the trans.
+
+    --> notice how because the DB stores the last commit-id, when
+        given a log, we can determine if it is sufficient to catch up
+        the database, and which part of it needs to be replayed.
+
+(7) So why do we bother keeping and running the tran code?  Because it
+is only by running the tran, that we can ensure that application
+consistency invariants are maintained.  The client could always lie
+about what's updated, in their submitted tran record.  Running the
+code actually ensures that they don't lie.

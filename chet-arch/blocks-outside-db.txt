@@ -1,0 +1,19 @@
+Currently, the "event" subsystem is a subsystem of the peer, and
+hence, heavy event subscriptions can bog down the peer (cpu, GC, DB
+traffic, etc).  If we store blocks in external file-segments,
+
+(1) the event subsystem can be its own process, reading directly from
+those file-segments.  Publishing "current" blocks merely means waiting
+until the "last" file-segment grows, and reading the new data,
+bit-by-bit, until a full block appears.
+
+(2) And of course, for those consumers of events, who want to consume
+the entire blockchain log, we can provide a much, much better way of
+consuming it -- "rsync".  Or even better, "unison" (which does
+live-push of updates, so as the blockchain log grows, those changes
+are effiicently pushed to to the consumer).
+
+The best part is, this -simplifies- the peer itself, while losing no
+functionality.
+
+--chet--

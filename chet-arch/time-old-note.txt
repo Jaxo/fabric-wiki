@@ -1,0 +1,70 @@
+----- Forwarded by Chet Murthy/San Francisco/Contr/IBM on 03/30/2016 09:42 AM -----
+
+From:	Chet Murthy <chetsky@gmail.com>
+To:	Chet Murthy/San Francisco/Contr/IBM@IBMUS
+Date:	02/10/2016 05:37 PM
+Subject:	Fwd: Time, determinism, and special-case validation
+
+
+
+
+---------- Forwarded message ----------
+From: Chet Murthy <chetsky@gmail.com>
+Date: Fri, Dec 11, 2015 at 4:39 PM
+Subject: Time, determinism, and special-case validation
+To: Mark Parzygnat <markparz@us.ibm.com>, Gennaro Cuomo <gcuomo@us.ibm.com>, Binh Q Nguyen <binhn@us.ibm.com>, Frank Y Lu <fylu@us.ibm.com>, John Wolpert <johnwolpert@us.ibm.com>, Sheehan Anderson <sheehan@us.ibm.com>, Jeffrey Garratt <garratt@us.ibm.com>
+
+
+
+TL;DR: I think the OBC peer code needs to make special provision for
+dealing with the current time.
+
+Suppose we want to write a contract that will autonomously make coupon
+or dividend payments (on a schedule).  At a -minimum-, we need a way
+to cause some contract to execute the payment, at a specific time
+(say, Dec 15 2015, noon Pacific time).  There are two parts to this:
+
+  (a) invoking some code at or after noon PT Dec 15 2015.  Hopefully
+  soon after.
+
+    --> this isn't very difficult: a cron job could "kick" the
+        database periodically to cause all timered contracts to check
+        whether it's time take an action
+
+  (b) having that code -decide- that it's "noon PT Dec 15 2015", and
+  take action (== "proceed with making the payment").
+
+Since "the current time" is effectively nondeterminstic (at replay
+time, it'll be different), we can't use that in the contract code.
+Instead, we have to look someplace in the state ("current time slot"),
+where (hopefully) somebody has stashed a near-approximation to "the
+current time" (using the "time updater" tran, of course).  So far, so
+good.
+
+[That "time updater" tran would check that the new time was >= the
+time already in the "current time slot", of course.]
+
+[One could also imagine that every block has an approximation to "the
+current time" stamped in it, but it doesn't change the issue below.]
+
+So what more is there to do?  Well, who's to say that somebody isn't
+trying to pass a tran that moves time forward into the future?  So to
+validate a time updater tran invocation, every validator would need to
+verify that the time being stamped-in, was not in the future.  If a
+Byzantine quorum of nodes validate this, then we can stamp it in.
+
+Three things to note here:
+
+(a) in order to make time advance as close as possible to "real time",
+we would need to run NTP or atomic clocks at all validators.  Large
+clock skew at a decent number of validators will not prevent time from
+updating, but will (basically) make the lag between the "current time
+slot" and the "real current time" larger.
+
+(b) This is an example of special-case validation logic that isn't
+related to data.  It has to be special-cased into the OBC peer code.
+
+(c) This might be only one case of such a thing.  I haven't thought of
+others, but I wouldn't be surprised if there were.
+
+

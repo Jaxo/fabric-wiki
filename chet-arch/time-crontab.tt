@@ -1,0 +1,229 @@
+I for one cannot think of anything significant to ask ...(except perhaps point out a silly little sleep seems to be missing in the for loop of "time_oracle" func :-)). Inasmuch as we need a timekeeper in OBC, this sounds like a great template to start off with.
+
+Thanks
+Murali
+"I just wondered how things were put together." - Claude Shannon
+“...Don't be trapped by dogma — which is living with the results of other people's thinking ....” - Steve Jobs
+
+
+
+
+
+From:	Chet Murthy/San Francisco/Contr/IBM
+To:	Binh Q Nguyen/Raleigh/IBM@IBMUS, Frank Y Lu/Raleigh/IBM@IBMUS, Gari Singh/Cambridge/IBM@IBMUS, Konstantinos Christidis/Durham/IBM@IBMUS, Jeffrey Garratt/Raleigh/IBM@IBMUS, Sharon Weed/Raleigh/IBM@IBMUS, Mark Parzygnat/Raleigh/IBM@IBMUS, Srinivasan Muralidharan/Raleigh/IBM@IBMUS
+Date:	03/31/2016 08:39 PM
+Subject:	DesignNote: "time" and crontab in OBC
+
+
+[TL;DR -- LSEG (and everybody else) need the ability to do (e.g.) time-triggered coupon-payments, dividend-payments, etc.  This design is in support of that.  Most of the work is in "plain old chaincode" -- could be done by LSEG; there are THREE changes needed to OBC to support this, and only one of them needs to be done NOW to allow somebody to start prototyping that chaincode.]
+
+This design note is a follow-up to "Time, determinism, and
+special-case validation", and covers the same material, but also
+proposes a design for the "crontab" of OBC.  There are new (and
+modest) requirements on OBC, in this design, and they will be
+spelled-out carefully below (search for "OBC REQUIREMENT").  Most of
+the design can be implemented in chaincode.
+
+I. Overview
+
+II. Basics: Consistent and Safe Time in OBC
+
+III. Basics: Safety but Maybe not Liveness Time-Update
+
+IV. Liveness Time-Update
+
+V. Crontabs: A Basic Design (suitable for a prototype)
+
+VI. Crontabs: General Design
+
+================================================================
+
+I. Overview
+
+Terminology: In this document, we will use "safety" and "liveness" in
+the manner in the distributed systems literature:
+
+  "safety" means that a system does not deliver incorrect results.
+
+  "liveness" means that the system eventually makes progress, and
+  repeatedly so.
+
+OBC will need a way to measure time that is
+
+(a) "safe": is never in the future
+
+(b) "consistent": all replicas at the same LSN have the same time
+
+(c) "live": the time -does- move forward
+
+This design proposes a way to do that, in two stages.
+
+Further, OBC will need a "crontab", where trans that need to execute
+at some point in the future can be stored.
+
+================================================================
+
+II. Basics: Consistent and Safe Time in OBC
+
+"Time" in OBC must have the following safety properties:
+
+(a) consistent across nodes
+
+(b) replayable
+
+(c) always advances forward, never backward
+
+(d) never in the future
+
+This tells us that (a) the time must be stored in the DB, and
+time-update must be a transaction that(b) takes the new time as a
+parameter.  The update-chaincode will be (pseudo-code):
+
+func update(t Timestamp) {
+  oldts := store.Get("Now")
+  // (c)
+  if oldts > t {
+    raise Exceptionf("time cannot go backward: %s", t)
+  }
+  now := Localtime()
+  // (d)
+  if now < t {
+    Debugf("new time cannot be in the future: %s (now) < %s (new)", now, t)
+    Fail("Tran rejected")
+  }
+  store.Set("Now", t)
+  // tran succeeds
+}
+
+This chaincode uses Localtime() (to get the machine-local time), hence
+cannot be a "normal" chaincode.
+
+OBC REQUIREMENT: we need "system chaincodes" here.
+
+Consensus guarantees that 2/3+1 validators find the new time to be
+safe (advancing forward, but not in the future).
+
+================================================================
+
+III. Basics: Safety but Maybe not Liveness Time-Update
+
+To update the time, an external client ("oracle") invokes
+"time.update()" with its idea of the current time, minus some fudge
+factor to account for clock skew amongst the peers.  E.g.,
+
+    "Localtime() - 1 minute"
+
+This is doesn't give us liveness for two reasons:
+
+(a) that oracle could crash (but we could run multiple copies)
+
+(b) nothing guarantees that the oracle knows the actual clock-skew.
+It could be that all peers are 5min behind, so the oracle's proposed
+new time will always be in the future of all peers, so the clock will
+never advance.
+
+================================================================
+
+IV. Liveness Time-Update
+
+To address the issues in #III, let's devise a new time-update oracle
+scheme.
+
+OBC REQUIREMENT: this will be a OBC client process built into the
+peer.  Could be a program running on the same node, or a goroutine.
+
+We need an oracle that periodically checks the time, and whenever it
+find that the time is more out-of-date (relative to its local clock)
+than some limit, submits a tran to -halve- that gap.  Further, if each
+peer runs such an oracle, the oracle needs to sleep some random number
+of seconds before beginning, so that (with high likelihood) all copies
+of the oracle are waking up at different times.
+
+func (peer obc.PeerHandle) time_oracle(sleeptime time.Duration) {
+     // a random duration less than sleeptime
+     initSleep := RandomDuration(sleeptime)
+     sleep(initSleep)
+     for {
+       now := Localtime();
+       peertime := peer.Query("time.Get")
+       // clock hasn't been updated since we slept
+       if peertime + sleeptime < now {
+       		   lag := now - peertime
+		   updatedelta := lag / 2
+		   peer.Run("time.Update", peertime + updatedelta)
+       }
+     }
+}
+
+I -believe- this code has the following property:
+
+if it fails to update the time, then on the next attempt it will
+choose a time -further- in the past (with a greater lag).  So
+eventually, that lag will put the new time at prior to 2/3+1 of the
+peers, EVEN IF they are all lagging realtime by an arbitrary amount.
+
+================================================================
+
+V. Crontabs: A Basic Design (suitable for a prototype)
+
+Crontabs need to spark trans, based on the advance of time.  There are
+two parts:
+
+  (a) actually initiating the operation of checking the time, finding
+  crontrans that need to be run, executing them, deleting them from
+  the table.
+
+    --> we can call this the "oracle" that submits the cron.Run1()
+        tran
+
+  (b) the actual chaincode cron.Run1()
+
+  (c) and of course, entrypoints to add, cancel, and manage cronjobs
+
+In a first design, let's assume that the cronjobs consist in some
+serialized proto, and the cron.Run1() will deserialize that proto and
+invoke some known chaincode.  That is, this crontab is ONLY for some
+one application.
+
+It should be clear how to do this -- we need a table with (e.g.)
+
+cronjobs (
+  when Timestamp,
+  jobid uuid,
+  submitter, <TCERT> // ??
+  job blob,
+  primary key (when, jobid),
+  secondary key (submitter)
+)
+
+and now cron.Run1() will find the first job in the table whose
+Timestamp is in the past, delete it, and invoke some known chaincode
+with that blob as an argument.
+
+We can use a method similar to the oracle of section #IV to ensure
+that cronjobs are checked and run periodically.
+
+================================================================
+
+VI. Crontabs: General Design
+
+OBC REQUIREMENT: Shim supports operation to execute a vector of trans
+as part of the current tran.
+
+OBC REQUIREMENT: For this reason (and others) a client should not submit
+-a- tran, but rather, a -list- of trans (which are atomically executed).
+
+A more general design would have the "job" blob be a vector of trans,
+which need to be run; the chaincode deserializes the blob into a
+vector of trans and asks the shim to execute them.  In both cases, the
+chaincode deletes that row from the table.
+
+If there are more jobs that have expired, the chaincode returns "true"
+(telling the invoker to submit the tran again, causing another job to
+be executed.
+
+
+
+
+
+

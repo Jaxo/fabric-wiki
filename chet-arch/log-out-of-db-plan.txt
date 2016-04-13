@@ -1,0 +1,25 @@
+Guys,
+
+I was thinking about how to move the log out of the DB in an incremental manner.  Here's some ideas:
+
+(1) keep the log in the DB, but move it into its own CF
+
+(2) Right now, I think the only way to address the log, is by tran-id?  Change OBC so that instead, you use "log sequence number" (LSN).  That will be a pair of integers, with the first being called the "file number" and the second the "record number".  For now, we'll fix the file-number at zero.  The record number increases monotonically.  All addressing of log-records is by LSN, and the LSN is formatted with zero-padding, so that when you sort in the customary way, you get the expected integer ordering over LSNs.
+
+This will allow you to store log-entries in the DB, keyed by LSN, and get no overlaps, hence the GC process will not have to do any sorting.
+
+(3) The -consensus- mechanism will choose LSNs, and it will do so in the following way:
+
+  (a) IFN,RN) are chosen so that RN increases monotonically
+
+  (b) whenever RN gets larger than some bound (say, 100k), it increments FN and RN goes back to zero.
+
+(4) Effectively, this is like the "commit number" of Paxos.
+
+(5) then change the DB impl of #1-2, so that you use the file-number as the CF name.
+
+So now, each "file-number"'s records are in a separate CF, and can be dropped in a bulk operation.
+
+(6) Later, somebody can design and implement a proper "log-as-series-of-files".  But with this design, you get most of the advantages.
+
+--chet--

@@ -1,0 +1,284 @@
+
+Folks,
+
+Murali and I put this together over the weekend.  Errors are all mine.
+
+================================================================
+
+This note is a design for the database replicator portion of OBC.  It
+is organized as follows:
+
+I. Design Goals and Non-goals (with rationale)
+
+II. A Simple Design for the Basic API
+
+III. Custom Events and Auditing Enablement (here for completeness -- it's bad)
+
+IV. Custom Events and Auditing Enablement (alternative (better) design)
+
+V. Implications for other parts of OBC
+
+VI. Possible Future Extensions
+
+================================================================
+
+I. Design Goals and anti-goals (with rationale)
+
+In this section, we'll list a set of goals, anti-goals, and also
+"theses" that should guide any viable design.
+
+(1) [goal exactly-once] It should be possible for an event-client to
+subscribe in such a way that, nowithstanding any number of crashes and
+disconnections, it receives an exactly-one feed of -precisely- those
+trans that are committed.  That is, it gets every tran that is
+committed, in tran-order.
+
+  --> critically important for pumping into any other enterprise
+      system: we neither want to miss trans, nor have to figure out
+      which are duplicates
+
+  --> "notwithstanding any number of crashes" means that such a client
+      might be subscribing (or reconnecting) asking to be brought
+      up-to-date starting at some point in the (recent or
+      not-so-recent) past
+
+(2) [goal globally-consistent] Whichever replica (peer) an event
+client connects to, it should see the -identical- stream of events.
+
+  --> globally-consistent replicated database, right?  If this doesn't
+      follow immediately, what do those words mean?
+
+(3) [anti-goal replayable-from-blocks] Whatever the event-stream is,
+it cannot comprise something NOT ALREADY in the blocks themselves
+
+  --> Immediate corollary of #3.
+
+(4) [goal auditor-client] It should be possible to write an auditor
+program that uses this replicator feed as its input
+
+   --> an application might be composite: stock-trading (and maybe
+       option-exercise) could rely on stock-delivery and
+       money-delivery (== "payment") to complete the two legs.  An
+       auditor might want to audit all payments, to ensure compliance
+       with AML; similarly both stock-trading and option-exercise
+       would use stock-delivery, and insider-trading compliance might
+       require analyzing all stock-delivery operations
+
+(5) [custom events] chaincode needs to generate "custom" events.
+
+================================================================
+
+II. A Simple Design for the Basic API
+
+(1) The "network API" we should provide is one where a client connects
+(with appropriate authorization) and subscribes to a feed of BLOCKs.
+In order to support [goal exactly-once], a client must be able to
+subscribe both "starting at a particular block" (maybe particular
+time? should blocks have (approximate) time in them?) (and probably
+"starting now") and "starting after a particular block".
+
+Rationale: a client connects, asking to start at block #0.
+Eventually, either the client, or the peer, crashes.  The client has
+been receiving blocks, pumping them into its DB, and keeping track of
+the "last block received".  When the client connects, it wishes to
+restart "from that last block".  Really what it wants, is to start
+"after this particular block#".
+
+(2) the delivery "network API" is really simple: we deliver blocks in
+-binary- form
+
+Rationale: there are two scenarios for delivering blocks:
+
+  (a) a block arrives from consensus.  We have available -both- the
+  demarshalled and the flat-binary versions (b/c the flat-binary
+  version is what goes into the on-disk blockchain).  We can send the
+  flat-binary version, avoiding the extra re-marshalling cost.
+
+  (b) we're replaying from the on-disk blockchain: we have available
+  only the flat-binary version.  If the "networ API" is based on the
+  in-memory block struct, we must demarshall from disk, ONLY to turn
+  around and re-marshall to the wire.
+
+  --> purely superfluous computation.
+
+(3) the API should NOT deliver trans -- blocks are better.
+
+Rationale: we can trivially provide a library running in the client,
+that breaks blocks into trans.  So the actual "client invocation API"
+can be trans.
+
+(4) BUT with MVCC, a block can contain trans that are skipped (b/c
+MVCC constraints are not satisfied).  So along with a block, will come
+a list of aborted trans.  This should be pretty anodyne.
+
+================================================================
+
+III. Custom Events and Auditing Enablement (here for completeness -- it's bad)
+
+[In this section, we'll propose one answer to how to implement
+auditing enablement and custom events.  In the next section, we'll
+propose a different solution, which we think is better from the
+point-of-view of confidentiality.]
+
+(1) ["auditor event tree"] Let's consider for a section the various
+scenarios for how an auditing program would work:
+
+  (a) the auditor would take row-level updates and -infer- the
+  higher-level operations.  This is complicated not just because it
+  requires understanding the data-model of the chaincode whose data is
+  being audited, but also b/c the auditor has to convert flat
+  keys/values into the data-structures that the chaincode used --
+  e.g., relational rows and keys (with Sheehan's library).
+
+  (b) the auditor would instead take the stream of transaction
+  invocations on some chaincode, and apply auditing at that level.
+  Obviously, this would require a belief that the chaincode is
+  correct, but (for instance) it would allow doing AML analysis at a
+  higher level.
+
+Both of these are (sort of -- read on) supported by OBC (with
+MVCC+postimage) without requiring that the auditor replay trans.  But
+suppose that the payment chaincode for which we want to perform AML
+auditing, is being used by a stock-trading chaincode.  Now, for case
+#b, we cannot see the chaincode invocations against the payment
+chaincode, right?  Because the tran invocation is against the
+stock-trading app.  So what we really need, is the -tree- of chaincode
+invocations. Then the auditor can choose which level of abstraction
+they want to audit at.
+
+(2) "custom events": On the view above, a custom event is -merely- an
+invocation of a chaincode with an empty body.  That's it.  That's it.
+
+(3) [security implications] There are three things about a tran that
+could be encrypted:
+
+  (a) the tran invocation
+  (b) the postimage rows (state-delta)
+  (c) the chaincode itself
+
+These could all be encrypted using different keys.  Which key should
+we use, to encrypt the auditor-event tree?  We don't have a solid
+answer, but propose that it should be encrypted in the same manner as
+#a.  That is, if the invoker didn't care to encrypt their
+tran-invocation, then why should they care about the tree of chaincode
+invocations. Similarly, if the invoker DID care to encrypt their
+tran-invocation, any replicator client should (must!) have access to
+that key, in order to decrypt the invocation, right?
+
+But what about #b?  other chaincodes (invoked by the top-level
+chaincode) might not want their invocations made public to anybody
+with the invoker's key.  We don't have a good answer, hence an
+alternative design below.
+
+================================================================
+
+IV. Custom Events and Auditing Enablement (alternative (better) design)
+
+Above, the problem was, (in the case of confidential
+trans/chaincode/rows) the tree of invocations could leak information
+to replication clients.  And we had no good way to prevent it.  So: an
+alternative proposal.
+
+In each tran there will be a sequence of "events".  These events will
+be either encrypted (using a key whose "name" is stored with the
+event, hence can be used to request the key) or plaintext.  There will
+be a special API in the chaincode shim-stub, that allows a chaincode
+to emit a protobuf and optional encryption key; the shim will
+serialize, encrypt, and send the buffer to the peer, which will stash
+it as part of the tran.  All of this will happen during simulation,
+and the event-list will be verified as identical, during validation
+(since this event-list is really a form of output of the tran).
+
+  --> of course, if we're talking confidential rows or chaincode,
+      neither the submitting client nor submitting peer can simulate:
+      that can only be done by a third-party (typically, also a
+      validator) peer, who can ask for and be given keys to decrypt.
+
+Summary judgment: We think this is the way to go, b/c it respects
+confidentiality in the cases where it matters, and still allows
+chaincodes to "log" their invocations, so auditors can use those to do
+higher-level auditing.  This also allows controlled -size- of the
+event-list.
+
+================================================================
+
+V. Implications for other parts of OBC
+
+MVCC+postimage (ledger) must maintain side-information about aborted
+trans
+
+Per the replicator design, it must be able to handle both "current
+blocks" (as they arrive) and "historical replay".  For "current
+blocks", one can imagine that as we apply the trans in the block, we
+keep track of which are aborted, and only after the block is
+fully-applied, is it delivered (along with that abort-information) to
+replication clients.
+
+For "historical replay", unless we keep that abort-information around,
+we have no way of calculating which trans were aborted -- the state
+against which such a calculation would be made, is long-gone.  So
+along with the on-disk blockchain, we need to keep side-files of
+aborted trans.  We can imagine two ways of doing this:
+
+(1) [current design] In the current design, blocks are stored in
+RocksDB.  Merely add a tablespace for "abort information", and store
+abort-information using the same keys as for blocks.  Of course, if no
+trans in a block were aborted, we would store nothing.
+
+(2) [when blocks are moved out of the RocksDB] when blocks are stored
+in large (10G) "segments", along with each segment, we have a
+"side-info" file, that contains these aborted-tran records, for those
+trans in the segment.
+
+  --> note that when a peer sends other peers these segments (to catch
+      them up) it DOES NOT need to send the side-info files -- the
+      other peers will "execute/"install the trans in order, and hence
+      will compute aborted-tran information.
+
+(3) [another design for #2] we could alternatively store side-info in
+RocksDB.  This would have the advantage that disk-commit would be in
+batch, so more efficient.  Disadvantage of more information in
+RocksDB.  OTOH, there shouldn't be a lot of aborted trans -- if there
+are, that's a bad sign for the application -- since blockchain will
+behave badly on high-contention workloads.
+
+Summary judgment: Go with method #3.  It's simplest, and doesn't
+really have drawbacks, except that a periodic housecleaning will be
+needed to remove side-info for segments that have been GCed or
+archived.
+
+================================================================
+
+VI. Possible Future Extensions
+
+(1) A block comprises a sequence of trans, and each tran has:
+
+  (a) tran invocation
+
+  (b) MVCC+postimage
+
+  (c) event-list
+
+  (d) validation signatures
+
+(2) [We don't think it's a good thing to do (b/c more work for the
+peer), but] One could imagine that one wants to decrease network
+bandwith between peer and replication-client.  So one might want to
+provide an augmented "replicator network API", that delivered -trans-
+instead of blocks, and allowed selection of trans based on
+chaincode-id, and perhaps even values of arguments.
+
+We don't believe this is a good thing, b/c it fails miserably in the
+case of confidential tran invocations (submitting peer might not even
+be able to decrypt the invocation).
+
+(3) Similarly, one might imagine only wanting the postimage
+
+(4) perhaps only events, and perhaps even only a subset of events
+
+Most of this will only work for non-confidential trans/data, and will
+require implementing some sort of matching engine in the peer.  We
+think this is not such a great thing.  But it's something to think
+about.
+
+

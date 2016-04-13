@@ -1,0 +1,62 @@
+DesignNote: replay/auditing and its effect on the storage of the blockchain's block
+
+[Guys, a quick note, effectively an argument for moving the blockchain out of rocksdb.]
+
+I'm writing this note after a chat with Suma Nair, about her
+(possible) needs around replaying trans in the blockchain.  Rather
+than attribute any particular requirements to her (don't want to put words in her mouth), I'll stipulate an
+"auditing" use-case, and reason forward from there.
+
+(1) [auditing] Suppose an auditor is attempting to determine which
+user executed a tran to sell a large block of Valeant stock a few minutes
+before the quarterly earnings call. [Valeant is currently in the news
+for various securities-fraud-related issues.]  Typically, these large orders are broken up in to a large number of smaler orders (to hide them).  But they'll all execute closely-together in time (b/c our purported insider trader got the tip very close to the quarterly call.]
+
+(2) [abstract method to audit] This auditor could start with a
+snapshot of the database from a few days (weeks?  months?) prior to
+the earnings call, and apply tran-records, one-by-one, to the
+database, looking for a series of trans that executed within a
+one-or-two-minute period: the offending sales.  In short, this is a kind of
+analytic query, on the update-stream of holdings of Valeant stock.
+
+[The next section is based on my understanding of Leveldb internals.
+I'd be surprised if Rocksdb changed this substantially, but even if
+so, I'm guessing the section can be revised.]
+
+(3) [implementation if blockchain is -outside- rocksdb] First, a
+"snapshot" is easy to implement -- we close the database, hard-link
+over a new directory from the current rocksdb directory, and then
+replace the MANIFEST with a copy.
+
+[This works b/c in Rocksdb, all files except for the current log-file,
+and the MANIFEST, are written once in batch, and then only read (until
+deletion).  By closing the DB, we close the current log-file; when the
+DB is reopened, a new log-file will be created.  By -copying- the
+MANIFEST (in the snapshot directory), we ensure that appends to the
+MANIFEST in the original DB directory will not affect the snapshot.]
+
+Next, we assume that the DB state records the LSN (log sequence
+number) of the last-applied tran-record.  We can use this to take a
+current log, find that record (efficiently, since an LSN is
+(file-number, offset-in-file) and start replay with the subsequent
+tran.
+
+[Suppose the current log was truncated already.  We can go back to archived log-segments and find the desired segment there, efficiently and easily.  Then transfer that segment and all newer segments, up to the oldest segment available with the current DB state.  Segment-numbers are never reused, so this is easy and safe, as well as very efficient.]
+
+(4) [implementation if blockchain is -inside- the rocksdb] If the
+blockchain is inside the rocksdb, then we can assume only that we have
+stored in the global state the tran-id of the
+most-recently-committed/executed/applied block.  Moreover, the
+efficient snapshot mechanism I describe above, snapshots both the DB
+state -and- the log at that moment.
+
+In order to replay, we must take a current DB state (and log), and
+walk the blockchain backwards (which is random-access -- block-ids are
+effectively random) until we find the last-applied-block of the
+snapshot.  Then we can walk forwards (again, in the current DB state),
+applying blocks to the snapshot, one-by-one.
+
+This is inefficient and cumbersome.  It also means we cannot
+incrementally archive older parts of the log, without writing an
+extraction tool -- whereas, with the log stored outside the database
+in a series of files, incrementally archiving is -trivial-.

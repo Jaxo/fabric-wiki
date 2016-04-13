@@ -1,0 +1,149 @@
+DesignNote: data-caching in and statefulness of chaincode
+
+Chet Murthy  	to:	Binh Q Nguyen, Frank Y Lu, Konstantinos Christidis, Sheehan Anderson, Jeffrey Garratt, Mark Parzygnat, Gennaro Cuomo	01/27/2016 12:56 PM
+
+
+This design note discusses statefulness of chaincode (the fact that
+it's forbidden) and implications for data-caching in chaincode.
+
+[Preface: I was surprised, when I thought things thru, that in fact all such statefulness was forbidden.  I'm recapitulating my thought-process here, and would ask that you verify it for yourselves.  But ALSO, I would ask that you think about and decide whether statefulness SHOULD be allowed.  That is, sure, this reasoning might be correct.  But perhaps we MUST allow it, and hence, we need to find a work-around (last section, perhaps).  I can't answer the "requirements" question, obviously.]
+
+Structure
+
+I. Caching in chaincode: why it's always forbidden
+
+II. Implications for statefulness of chaincode
+
+III. Work-arounds: how to allow statefulness in chaincode
+
+Definitions
+
+Package-global variables: Go variables declared at the package level,
+that is, not inside a function
+
+struct members of the chaincode struct: these are members of the
+struct on which the Run/Query methods are defined.
+
+Stateful: A chaincode is stateful if it has access to un-managed
+(in-process-memory) variables that it can mutate during a request, and
+are then accessible to a subsequent request.  [Of course, a chaincode
+can store such data in the database, but that data is managed by the
+peer, so it doesn't count toward this definition.]
+
+Assumption
+
+  Any user behaviour that -might- be dangerous, and that we cannot
+  -constrain- to make safe (e.g. by program analysis) MUST be
+  forbidden.  A system that renders final judgment of the disposition
+  of assets must not allow the possibility of making mistakes, as far
+  as is humanly possible.
+
+================================================================
+
+I. Caching in chaincode: why it's always forbidden
+
+Why might chaincode want to cache data in-memory (outside of the
+database)?
+
+  (a) to store data fetched from external networks
+
+    This is illegitimate, b/c external data might not be available at
+    all replicas, and it would need to persist for many, many years
+    (or replyaability would be lost).
+
+  (b) to store data fetched from disk
+
+    This is illegitimate, b/c we have no way of deploying code to the
+    docker instance's disk
+
+  (c) to store data fetched from the database
+
+    the only times when data can be fetched from the DB, are during
+    Run/Query operations.  But suppose that such an operation fetched
+    some data from the DB, that it stored in-memory in a global var or
+    struct.  In short, the chaincode is going to read-and-cache some
+    data from the DB.
+
+    Consider two scenarios: in both scenarios the same sequence of
+    events transpires:
+
+      (i) tran1 executes, reads-and-caches some data in-memory
+
+      (ii) tran2 executes, modifying the rows in the DB that were read
+      by tran1
+
+      (iii) tran3 executes, running some business logic, that makes
+      reference to the data cached in-memory
+
+    Scenario 1: no crashes
+
+    Scenario 2: a crash right before step #iii
+
+    Now, tran3 will read the rows from the database, and will get
+    different data than was read by Scenario 1, step #i.
+
+    Furthermore, scenario 2 is indistinguishable from a snapshot taken
+    before step #iii, then used at some later point for auditing (b/c
+    data older than the snapshot was deemed legally safe to discard).
+
+  [ANOTHER SCENARIO] (c') Suppose we're dealing with confidential
+  trans or confidential rows.  A "root confidential tran" T1, might
+  invoke other (non-confidential) trans (e.g. for asset-transfer) T2,
+  T3.  Those trans might cache data in-memory.  Since T1 is
+  confidential, it will not run, but only its effects on the DB will
+  be applied, at all members.  So the stateful caches of T2, T3 might
+  not be up-to-date.  A subsequent (non-confidential tran) invoking
+  T2, T3, might then "go wrong", b/c caches are out-of-date.
+
+Since we CANNOT verify that chaincode is well-behaved (doesn't modify
+rows that might be cached in-memory, -always- maintains caches
+in-memory up-to-date with the DB), we CANNOT allow chaincode to cache
+in this manner.
+
+================================================================
+
+II. Implications for statefulness of chaincode
+
+At a minimum, Unless we can ensure that chaincode stateful caches are
+invalidated when rows in the DB change, we -cannot- allow stateful
+chaincode.  Therefore, all global vars and chaincode-struct member
+vars are forbidden.
+
+================================================================
+
+III. Work-arounds: how to allow statefulness in chaincode
+
+What can we do to work-around this limitation?  Whateve we do, had
+better work for confidential trans and rows.
+
+(1) Suppose we require that chaincode-struct members (hereinafter,
+"stateful members") are always described via protocol buffers.
+
+(2) Each stateful member is initialized with the key (th "underlying
+key") from which it will load its state, at init() time (no need to
+consult the DB).
+
+(3) chaincode Run/Query/etc methods can access the protobuf value of
+the stateful member, but program analysis will ensure that that value
+is "final", and hence never modified
+
+  --> but the first time during a tran that this access occurs, a
+      check will be made, that the underlying key has the same version
+      as what's cached in-memory, and if not, the value will be
+      fetched.  This is effectively a "get-if-modified".
+
+    --> NOTE WELL: this would be a new DB operation, only usable by
+        this infrastructure, and not available to chaincode authors.
+
+(4) chaincode can -update- the underlying key/value of a stateful
+member, and cause a -refresh- of the value.
+
+  --> THis is deterministic, hence safe.
+
+(5) Since the value itself is stored in the DB, other peers who might
+not be able to run the train (b/c confidential rows) can still benefit
+from the results of caching.  This could induce a leak of privileged
+information, so it's dangerous.  If that's the case, the cache itself
+could be encrypted (hence, a confidential row).  I haven't worked out
+how this would be implemented, but I suspect it's not too difficult,
+once we have a general facility for confidential rows.
