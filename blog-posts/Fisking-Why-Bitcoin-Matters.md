@@ -153,7 +153,7 @@ demanding payment in Bitcoin, per
 number of ransomware demanding payment via _any other payment
 mechanism_.  The claim that, because Bitcoin's ledger is publicly
 visible, criminal activity can be tracked-down, was manifestly false
-then, and time has shown us just how false it is.  Numerous
+then, and time has shown us just how false it remains.  Numerous
 ([reports][Cryptowall-Report]) have shown us that Bitcoin is a
 thieves' paradise.
 
