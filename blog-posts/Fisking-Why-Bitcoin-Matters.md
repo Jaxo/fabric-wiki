@@ -1,40 +1,102 @@
 
-#Fisking "Why Bitcoin Matters"
+#Fisking ``Why Bitcoin Matters''
 
 In early 2014
 [Marc Andreesen wrote a blog post][Andreesen-Why-Bitcoin-Matters]
 arguing that Bitcoin is a pivotal technology for financial
-transactions.  He makes a number of expansive claims in the post,
-which I feel are categorically false, and need to be debunked.  Hence,
-this post.
+transactions.  He made a number of expansive claims in the post, which
+I feel are categorically false, and need to be debunked.  Hence, this
+post.
 
 In this post, I'll focus on two issues:  
 
 * Bitcoin is not a solution to any distributed consensus problem
-  worthy of the name
+  worthy of the name -- and why this should matter to people who build
+  distributed applications (like payment infrastructure)
 
 * Bitcoin is _wildly_ more fraud- and crime-friendly than the current
-  monetary system, and for good reason
+  monetary system, and for good reason: its censorship-resistance is
+  _intrinsically_ friendly to crime
 
-## Bitcoin does not "solve Consensus"
+## Bitcoin does not ``solve Consensus''
 
 >First, Bitcoin at its most fundamental level is a breakthrough in
-computer science ... Bitcoin is the first practical solution to a
-longstanding problem in computer science called the Byzantine Generals
-Problem.  More generally, the B.G.P. poses the question of how to
-establish trust between otherwise unrelated parties over an untrusted
-network like the Internet.
+ computer science ... Bitcoin is the first practical solution to a
+ longstanding problem in computer science called the Byzantine
+ Generals Problem.  More generally, the B.G.P. poses the question of
+ how to establish trust between otherwise unrelated parties over an
+ untrusted network like the Internet.
 
-Bitcoin is **most assuredly not** a solution to BGP in the real world.
-Academics have written papers about Bitcoin and **Synchronous BGP**
-(wherein, one assumes that the network does delay messages infinitely
--- thus, networks cannot partition).  But I have found no papers about
-Bitcoin and **Asynchronous BGP**; it doesn't take a lot of reflection
-to conclude that if a network partitions, the bitcoin miners on _both
-sides_ will continue to operate (and hence, will diverge in their idea
-of the blockchain's contents).  In the language of the BGP, if the
-messengers between the generals never get thru, _obviously_ the
-generals will never be able to agree.
+Andreesen here is referring to the ``consensus'' problem in
+distributed systems, and specifically the version where computers can
+act in ``corrupt'' (Byzantine) ways.  I'll explain below first what
+this problem is and why it's important; second, I'll explain why
+**Andreesen is flat-out wrong**.
+
+### Consensus and Byzantine Generals: A Short Tutorial
+
+Andreesen refers to the "consensus" problem:
+
+  can multiple computers on a network achieve agreement on the
+  contents of a replicated database application, and the evolution of
+  those contents over time, in the face of specified sorts of
+  failures/corruptions/errors?
+
+so that (for example) each computer (perhaps run by an independent and
+competing bank) can trust that the contents of the database accurately
+reflect the state of some set of transactions amongst the
+participating banks.  Classically, the problem comes in two varieties:  
+
+1. The "crash-fault-tolerance" consensus problem: in the face of
+   (some) computers crashing and perhaps later restarting, can we
+   ensure that non-crashed computers achieve consensus as to the
+   contents of some replicated database application?
+
+2. The "byzantine fault-tolerance" consensus problem (colloquially
+   referred to as
+   [``The Byzantine Generals Problem''][Lamport-Byzantine-Generals])
+   (or BGP): in the face of (some) computers either crashing, or
+   behaving in (arbitrarily undefined) corrupt ways, can we achieve
+   consensus?
+
+And further, the problem can be modified by the sort of failures
+expected of the network:
+
+* **Synchronous networks** are those where any message can be delayed
+  only by some bounded amount: every message is eventually delivered
+  (hence, **completely unrealistic**)
+
+* **Asynchronous networks** are those that can arbitrary delay,
+  duplicate, reorder, or drop messages: these are realistic networks.
+
+So (for instance) the "Synchronous BGP" is one where computers can act
+in corrupt ways, but the network _never- partitions.  Whereas, in the
+"Asynchronous BGP", the network _can_ partition.
+
+### Bitcoin does not ``solve Consensus''
+
+The question of whether Bitcoin solves the BGP
+[has been studied][Bitcoin-theory-byzantine-generals] by academics,
+and in my review of the literature, I have found _no_ examples of
+academics claiming that Bitcoin solves the ``Asynchronous BGP''.
+Rather, they all study the ``Synchronous BGP''.  We shoudln't be
+surprised: academics like to write papers with positive results
+(nobody wants to tell the world that Omega-3 fatty acids are useless),
+and this is no exception.
+
+So let's be clear:
+
+    No evidence exists that Bitcoin can ensure that computers achieve
+    consensus in a world with asynchronous networks (that can
+    partition for arbitrarily long periods of time).  No evidence
+    whatsoever.
+
+It doesn't take a lot of reflection to conclude that if a network
+partitions, the bitcoin miners on _both sides_ will continue to
+operate (and hence, will diverge in their idea of the blockchain's
+contents).
+
+
 
 >The Bitcoin ledger is a new kind of payment system. Anyone in the
 >world can pay anyone else ... and in many cases, no fees .... Bitcoin
@@ -91,7 +153,9 @@ to reflect on _why_ that recovery has been possible:
 The problem is when those funds are sent into jurisdictions with lax
 laws and supervisory practices, like the Philippines.  Or Bitcoin.
 
+[Lamport-Byzantine-Generals]: http://research.microsoft.com/en-us/um/people/lamport/pubs/byz.pdf
 
+[Bitcoin-theory-byzantine-generals]: https://bitcointalk.org/index.php?topic=99631.0
 
 [Andreesen-Why-Bitcoin-Matters]: https://a16z.com/2014/01/21/why-bitcoin-matters-2/
 
