@@ -1,6 +1,9 @@
 
 #Fisking "Why Bitcoin Matters"
 
+>The network can stay partitioned longer than you can wait before
+ irrevocably handing over the keys to your Maserati
+
 In early 2014
 [Marc Andreesen wrote a blog post][Andreesen-Why-Bitcoin-Matters]
 arguing that Bitcoin is a pivotal technology for financial
@@ -103,7 +106,8 @@ consensus.  His argument boils down to this:
 Sirer relies on a probabilistic argument by
 [Nakamoto in his original bitcoin whitepaper][Nakamoto-bitcoin] that
 the more blocks that follow a particular block in the chain, the lower
-the probability that the Bitcoin miner will revise that block.  But
+the probability that the Bitcoin network will revise that block
+(choose a longer fork that invalidates that particular block).  But
 these probabilistic arguments are _all_ made with the assumption that
 network partitions are short-lived.  And this assumption is
 [not borne out by real-world experience][Aphyr]:
