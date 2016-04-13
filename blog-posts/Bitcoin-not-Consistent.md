@@ -34,12 +34,12 @@ that _payment systems in the real world_ aren't trivial.  The
 [history of payment systems][Nacamuli-Payment-Systems] tells us that
 modern payment systems are complex for reasons having _nothing_ to do
 with the underlying technology.  They must deal with (at a minimum):  
-* **default risk**: (banks keep track of how much they're owed by other
-  banks, and this forces those other banks to reorder their payments
-  to minimize their balances)  
-* **liquidity costs**: banks may need to borrow funds short-term to make
-  payments (the basic function of banks, let's remember, is to borrow
-  short and lend long)  
+* **default risk**: (banks keep track of how much they're owed by
+  other banks (in case the other bank defaults), and this forces those
+  other banks to reorder their payments to minimize their outstanding balances)  
+* **liquidity costs**: banks may need to borrow funds short-term to
+  make payments (the basic function of banks, let's remember, is to
+  borrow short and lend long)  
 
 These issues directly correspond to complexity in the database
 application (for example, queueing and reordering payments to minimize
