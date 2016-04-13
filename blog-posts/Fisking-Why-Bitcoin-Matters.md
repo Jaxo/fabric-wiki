@@ -91,12 +91,9 @@ So let's be clear:
     partition for arbitrarily long periods of time).  No evidence
     whatsoever.
 
-It doesn't take a lot of reflection to conclude that if a network
-partitions, the bitcoin miners on _both sides_ will continue to
-operate (and hence, will diverge in their idea of the blockchain's
-contents).  [Sirer][Sirer2016] recently argued that Bitcoin was
-"strongly consistent", by which he means, roughly speaking, that it
-achieves consensus.  His argument boils down to this:
+[Sirer][Sirer2016] recently argued that Bitcoin was "strongly
+consistent", by which he means, roughly speaking, that it achieves
+consensus.  His argument boils down to this:
 
     Certainly, the most-recent Omega (typically == 6) blocks of the
     blockchain can be unstable (change over time due to "forks"). But
@@ -114,7 +111,10 @@ network partitions are short-lived.  And this assumption is
 >Average partition duration ranged ... to over 8.2 hours for
  hardware-related failures (... 95th percentile .... 3.7 days ...).
 
-
+It doesn't take a lot of reflection to conclude that if a network
+partitions, the bitcoin miners on _both sides_ will continue to
+operate (and hence, will diverge in their idea of the blockchain's
+contents).
 
 >The Bitcoin ledger is a new kind of payment system. Anyone in the
 >world can pay anyone else ... and in many cases, no fees .... Bitcoin
