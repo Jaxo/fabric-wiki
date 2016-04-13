@@ -1,5 +1,5 @@
 
-#Fisking ``Why Bitcoin Matters''
+#Fisking "Why Bitcoin Matters"
 
 In early 2014
 [Marc Andreesen wrote a blog post][Andreesen-Why-Bitcoin-Matters]
@@ -18,7 +18,7 @@ In this post, I'll focus on two issues:
   monetary system, and for good reason: its censorship-resistance is
   _intrinsically_ friendly to crime
 
-## Bitcoin does not ``solve Consensus''
+## Bitcoin does not "solve Consensus"
 
 >First, Bitcoin at its most fundamental level is a breakthrough in
  computer science ... Bitcoin is the first practical solution to a
@@ -27,9 +27,9 @@ In this post, I'll focus on two issues:
  how to establish trust between otherwise unrelated parties over an
  untrusted network like the Internet.
 
-Andreesen here is referring to the ``consensus'' problem in
+Andreesen here is referring to the "consensus" problem in
 distributed systems, and specifically the version where computers can
-act in ``corrupt'' (Byzantine) ways.  I'll explain below first what
+act in "corrupt" (Byzantine) ways.  I'll explain below first what
 this problem is and why it's important; second, I'll explain why
 **Andreesen is flat-out wrong**.
 
@@ -54,7 +54,7 @@ participating banks.  Classically, the problem comes in two varieties:
 
 2. The "byzantine fault-tolerance" consensus problem (colloquially
    referred to as
-   [``The Byzantine Generals Problem''][Lamport-Byzantine-Generals])
+   ["The Byzantine Generals Problem"][Lamport-Byzantine-Generals])
    (or BGP): in the face of (some) computers either crashing, or
    behaving in (arbitrarily undefined) corrupt ways, can we achieve
    consensus?
@@ -73,13 +73,13 @@ So (for instance) the "Synchronous BGP" is one where computers can act
 in corrupt ways, but the network _never- partitions.  Whereas, in the
 "Asynchronous BGP", the network _can_ partition.
 
-### Bitcoin does not ``solve Consensus''
+### Bitcoin does not "solve Consensus"
 
 The question of whether Bitcoin solves the BGP
 [has been studied][Bitcoin-theory-byzantine-generals] by academics,
 and in my review of the literature, I have found _no_ examples of
-academics claiming that Bitcoin solves the ``Asynchronous BGP''.
-Rather, they all study the ``Synchronous BGP''.  We shoudln't be
+academics claiming that Bitcoin solves the "Asynchronous BGP".
+Rather, they all study the "Synchronous BGP".  We shoudln't be
 surprised: academics like to write papers with positive results
 (nobody wants to tell the world that Omega-3 fatty acids are useless),
 and this is no exception.
