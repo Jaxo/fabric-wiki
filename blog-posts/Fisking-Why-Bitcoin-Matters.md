@@ -115,7 +115,21 @@ network partitions are short-lived.  And this assumption is
 It doesn't take a lot of reflection to conclude that if a network
 partitions, the bitcoin miners on _both sides_ will continue to
 operate (and hence, will diverge in their idea of the blockchain's
-contents).
+contents).  If the partition lasts "long enough", eventually Bitcoin
+users on each side will act as if their trans are immutable/committed,
+and .... "hand over the keys to their Maserati".  On one side or the
+other, they will find themselves horribaly mistaken.
+
+### Why does this matter?
+
+[On 12 March 2013, the Bitcoin network forked (due to a software bug) for over six hours][bitcoin-2013-fork].
+Bitcoin developers and operators met on IRC and resolved the problem.
+
+>Over the next few hours, nearly every major Bitcoin developer and
+ mining pool operator joined the bitcoin-dev IRC channel .... most
+ large businesses .... shut down
+
+
 
 ## Bitcoin is a haven for crime and ransomware
 
@@ -184,3 +198,6 @@ laws and supervisory practices, like the Philippines.  Or Bitcoin.
 [Aphyr]: https://aphyr.com/posts/288-the-network-is-reliable
 
 [omega-3-samefacts]: http://www.samefacts.com/2013/01/health-medicine/how-breakthrough-medical-findings-disappear/
+
+[bitcoin-2013-fork]: https://bitcoinmagazine.com/articles/bitcoin-network-shaken-by-blockchain-fork-1363144448
+
