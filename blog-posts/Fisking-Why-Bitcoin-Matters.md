@@ -27,11 +27,10 @@ In this post, I'll focus on two issues:
  how to establish trust between otherwise unrelated parties over an
  untrusted network like the Internet.
 
-Andreesen here is referring to the "consensus" problem in
-distributed systems, and specifically the version where computers can
-act in "corrupt" (Byzantine) ways.  I'll explain below first what
-this problem is and why it's important; second, I'll explain why
-**Andreesen is flat-out wrong**.
+Andreesen here is referring to the "consensus" problem in distributed
+systems, and specifically the version where computers can act in
+"corrupt" (Byzantine) ways.  I'll explain below (1) what this problem
+is and why it's important; (2) why **Andreesen is flat-out wrong**.
 
 ### Consensus and Byzantine Generals: A Short Tutorial
 
